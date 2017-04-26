@@ -149,7 +149,7 @@ manage_es_plugin() {
         cmd="$cmd remove $plugin"
         ;;
       *)
-      abort "Unknow option. Use evm -h for help."
+      abort "Unknown option. Use evm -h for help."
     esac
   fi
   $cmd
@@ -181,14 +181,15 @@ usage() {
   printf " %-50s %s\n" "$EVM_NAME install <version>" "Install a specific Elasticsearch version"
   printf " %-50s %s\n" "$EVM_NAME remove <version>" "Remove a specific Elasticsearch version"
   printf " %-50s %s\n" "$EVM_NAME use <version>" "Use a specific Elasticsearch version"
-  printf " %-50s %s\n" "$EVM_NAME plugin [<--install|--remove> <plugin>]" "Install/remove Elasticsearch plugin."
+  printf " %-50s %s\n" "$EVM_NAME which" "Display the current Elasticsearch version"
+  printf " %-50s %s\n" "$EVM_NAME plugin [<--install|--remove> <plugin>]" "Install/remove Elasticsearch plugin"
   printf " %-50s %s\n" "$EVM_NAME start [--config-path </path/to/config/dir>]" "Start Elasticsearch node with/without a specific config directory"
   printf " %-50s %s\n" "$EVM_NAME help" "Display usage information"
 
   printf "\nExample:\n"
   printf " %-50s %s\n" "$EVM_NAME install 5.3.1" "Install Elasticsearch 5.3.1"
   printf " %-50s %s\n" "$EVM_NAME use 5.3.1" "Use Elasticsearch 5.3.1"
-  printf " %-50s %s\n" "$EVM_NAME start" "Start Elasticsearch node with defaut config directory"
+  printf " %-50s %s\n" "$EVM_NAME start" "Start Elasticsearch node with the defaut config directory"
   printf " %-50s %s\n" "$EVM_NAME start --config-path /etc/elasticsearch" "Start Elasticsearch node with /etc/elasticsearch config directory"
   printf " %-50s %s\n" "$EVM_NAME plugin --install x-pack" "Install the x-pack plugin"
   printf " %-50s %s\n" "$EVM_NAME plugin --remove x-pack" "Remove the x-pack plugin"

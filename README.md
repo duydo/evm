@@ -14,7 +14,8 @@ evm list                                           List all versions of Elastics
 evm install <version>                              Install a specific Elasticsearch version
 evm remove <version>                               Remove a specific Elasticsearch version
 evm use <version>                                  Use a specific Elasticsearch version
-evm plugin [<--install|--remove> <plugin>]         Install/remove Elasticsearch plugin.
+evm which                                          Display the current Elasticsearch version
+evm plugin [<--install|--remove> <plugin>]         Install/remove Elasticsearch plugin
 evm start [--config-path </path/to/config/dir>]    Start Elasticsearch node with/without a specific config directory
 evm help                                           Display usage information
 ```
@@ -22,7 +23,7 @@ evm help                                           Display usage information
 ```sh
 evm install 5.3.1                                  Install Elasticsearch 5.3.1
 evm use 5.3.1                                      Use Elasticsearch 5.3.1
-evm start                                          Start Elasticsearch node with defaut config directory
+evm start                                          Start Elasticsearch node with the defaut config directory
 evm start --config-path /etc/elasticsearch         Start Elasticsearch node with /etc/elasticsearch config directory
 evm plugin --install x-pack                        Install the x-pack plugin
 evm plugin --remove x-pack                         Remove the x-pack plugin
