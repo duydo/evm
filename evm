@@ -1,0 +1,234 @@
+#!/bin/bash
+# Simple script for managing multiple Elasticsearch versions on your development local machine.
+
+set -e
+SCRIPT="$0"
+
+# SCRIPT may be an arbitrarily deep series of symlinks. Loop until we have the concrete path.
+while [ -h "$SCRIPT" ] ; do
+  ls=`ls -ld "$SCRIPT"`
+  # Drop everything prior to ->
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    SCRIPT="$link"
+  else
+    SCRIPT=`dirname "$SCRIPT"`/"$link"
+  fi
+done
+
+EVM_NAME=$(basename $SCRIPT)
+EVM_VERSION='0.1.0'
+EVM_HOME=${EVM_HOME:-"$HOME/.$EVM_NAME"}
+
+ES="elasticsearch"
+ES_HOME="$EVM_HOME/$ES"
+
+ES_1X_DOWNLOAD_REPO="https://download.elastic.co/elasticsearch/elasticsearch"
+ES_2X_DOWNLOAD_REPO="https://download.elastic.co/elasticsearch/release/org/elasticsearch/distribution/tar/elasticsearch"
+ES_5X_DOWNLOAD_REPO="https://artifacts.elastic.co/downloads/elasticsearch"
+ES_DOWNLOAD_EXT='tar.gz'
+
+# First use?
+if [ ! -d $EVM_HOME ]; then
+  mkdir -p $EVM_HOME;
+fi
+
+
+abort(){
+  echo ${1:-"Abort!"}; exit 3
+}
+
+_get_es_download_link() {
+  version="$1"
+  download_file="$ES-$version.$ES_DOWNLOAD_EXT"
+  case "$version" in
+    5.*)
+      echo "$ES_5X_DOWNLOAD_REPO/$download_file"
+      ;;
+    2.*)
+      echo "$ES_2X_DOWNLOAD_REPO/$version/$download_file"
+      ;;
+    1.*)
+      echo "$ES_1X_DOWNLOAD_REPO/$download_file"
+      ;;
+  esac
+}
+
+
+install_es_version() {
+  version=$1
+
+  if [ -d "$ES_HOME-$version" ]; then
+    abort "Elasticsearch $version has been already installed."
+  fi
+
+  download_link=$(_get_es_download_link $version)
+  if [ "x$download_link" = "x" ]; then
+    abort "Unknown Elasticsearch version $version"
+  fi
+
+  echo "-> Dowloading Elasticsearch $version from elastic.co"
+  echo "Retrieving $download_link"
+  output_file="$EVM_HOME/$ES-$version.$ES_DOWNLOAD_EXT"
+  wget -nc $download_link -O $output_file
+  echo "Installing $output_file"
+  tar -xzf $output_file -C "$EVM_HOME/"
+  echo "-> Installed elasticsearch $version."
+  if [ ! -f "$ES_HOME/bin/elasticsearch" ]; then
+    use_es_version $version
+  fi
+  rm -rf $output_file
+}
+
+use_es_version() {
+  version=$1
+  use_version="$ES_HOME-$version"
+  if [ ! -d $use_version ]; then
+    abort "The version $version has not installed yet."
+  fi
+  ln -sfn $use_version $ES_HOME
+  echo "-> Now using Elasticsearch $version."
+}
+
+start_es() {
+  cmd="$ES_HOME/bin/elasticsearch"
+  if [ ! -x $cmd ]; then
+    abort "Elasticsearch has not been installed yet."
+  fi
+  option_config_path="$1"
+  if [ "$option_config_path" = "--config-path" ]; then
+    config_path="$2"
+    if [ ! -d $config_path ]; then
+      abort "The config path '$config' does not exist or cannot access."
+    fi
+    cmd="$cmd -Epath.conf=$config"
+  fi
+  $cmd
+}
+
+remove_es_version() {
+  version=$1
+  uninstall_version="$ES_HOME-$version"
+
+  if [ ! -d "$uninstall_version" ]; then
+    abort "The Elasticsearch $version has not been installed yet."
+  fi
+
+  current_version=`readlink "$ES_HOME"`
+  if [ "$uninstall_version" = "$current_version" ]; then
+    abort "The Elasticsearch $version is in use."
+  fi
+  rm -rf $uninstall_version
+  echo "-> The Elasticsearch $version has been uninstalled."
+}
+
+manage_es_plugin() {
+  if [ ! -f "$ES_HOME/bin/elasticsearch" ]; then
+    abort "Elasticsearch has not been installed yet."
+  fi
+  # 5.x?
+  cmd="$ES_HOME/bin/elasticsearch-plugin"
+  if [ ! -f $cmd ]; then
+    # No? Try 1.x or 2.x...
+    cmd="$ES_HOME/bin/plugin"
+    if [ ! -f $cmd ]; then
+      # No?
+      abort "Plugin command not found."
+    fi
+  fi
+  option="$1"
+  if [ "x$option" == "x" ]; then
+    echo "-> Retrieving installed plugins"
+    cmd="$cmd list"
+  else
+    plugin="$2"
+    case "$option" in
+      --install)
+        cmd="$cmd install $plugin"
+        ;;
+      --remove)
+        cmd="$cmd remove $plugin"
+        ;;
+      *)
+      abort "Unknow option. Use evm -h for help."
+    esac
+  fi
+  $cmd
+}
+
+_find_current_es_version() {
+  for e in $(ls -d $EVM_HOME/*); do
+    echo $(readlink $e)
+  done
+}
+
+list_es_versions() {
+  current_version=$(_find_current_es_version)
+  for e in $(ls -d $EVM_HOME/* | grep "$ES-" | sort -nr); do
+    if [ "$current_version" = "$e" ]; then
+      printf "%-2s %s\n" "*" "$(basename $e) (in use)"
+    else
+      printf "%-2s %s\n" "" "$(basename $e)"
+    fi
+  done
+}
+
+
+usage() {
+  printf "\nSimple Elasticsearch Version Manager\n"
+
+  printf "\nUsage:\n"
+  printf " %-50s %s\n" "$EVM_NAME list" "List all versions of Elasticsearch have been installed"
+  printf " %-50s %s\n" "$EVM_NAME install <version>" "Install a specific Elasticsearch version"
+  printf " %-50s %s\n" "$EVM_NAME remove <version>" "Remove a specific Elasticsearch version"
+  printf " %-50s %s\n" "$EVM_NAME use <version>" "Use a specific Elasticsearch version"
+  printf " %-50s %s\n" "$EVM_NAME plugin [<--install|--remove> <plugin>]" "Install/remove Elasticsearch plugin."
+  printf " %-50s %s\n" "$EVM_NAME start [--config-path </path/to/config/dir>]" "Start Elasticsearch node with/without a specific config directory"
+  printf " %-50s %s\n" "$EVM_NAME help" "Display usage information"
+
+  printf "\nExample:\n"
+  printf " %-50s %s\n" "$EVM_NAME install 5.3.1" "Install Elasticsearch 5.3.1"
+  printf " %-50s %s\n" "$EVM_NAME use 5.3.1" "Use Elasticsearch 5.3.1"
+  printf " %-50s %s\n" "$EVM_NAME start" "Start Elasticsearch node with defaut config directory"
+  printf " %-50s %s\n" "$EVM_NAME start --config-path /etc/elasticsearch" "Start Elasticsearch node with /etc/elasticsearch config directory"
+  printf " %-50s %s\n" "$EVM_NAME plugin --install x-pack" "Install the x-pack plugin"
+  printf " %-50s %s\n" "$EVM_NAME plugin --remove x-pack" "Remove the x-pack plugin"
+  printf '\nNote: To remove, delete or uninstall evm - just remove the $EVM_HOME folder (usually ~/.evm)\n'
+  printf "\n"
+  exit 3
+}
+
+cmd="$1"
+case $cmd in
+    install)
+      version="$2"
+      install_es_version $version
+      ;;
+    use)
+      version="$2"
+      use_es_version $version
+      ;;
+    start)
+      start_es "$2" "$3"
+      ;;
+    remove)
+      version="$2"
+      remove_es_version $version
+      ;;
+    plugin)
+      option="$2"
+      plugin="$3"
+      manage_es_plugin $option $plugin
+      ;;
+    list)
+      list_es_versions
+      ;;
+    help|-h|--help)
+      usage
+      ;;
+    *)
+      usage
+      ;;
+esac
+
+exit $?
