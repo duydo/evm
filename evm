@@ -127,9 +127,15 @@ manage_es_plugin() {
   fi
   # 5.x?
   cmd="$ES_HOME/bin/elasticsearch-plugin"
+  option_list="list"
+  option_install="install"
+  option_remove="remove"
   if [ ! -f "$cmd" ]; then
     # No? Try 1.x or 2.x...
     cmd="$ES_HOME/bin/plugin"
+    option_list="--$option_list"
+    option_install="--$option_install"
+    option_remove="--$option_remove"
     if [ ! -f "$cmd" ]; then
       # No?
       abort "Plugin command not found."
@@ -138,15 +144,15 @@ manage_es_plugin() {
   option="$1"
   if [ "x$option" == "x" ]; then
     echo "-> Retrieving installed plugins"
-    cmd="$cmd list"
+    cmd="$cmd $option_list"
   else
     plugin="$2"
     case "$option" in
       --install)
-        cmd="$cmd install $plugin"
+        cmd="$cmd $option_install $plugin"
         ;;
       --remove)
-        cmd="$cmd remove $plugin"
+        cmd="$cmd $option_remove $plugin"
         ;;
       *)
       abort "Unknown option. Use evm -h for help."
