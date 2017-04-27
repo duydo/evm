@@ -40,6 +40,10 @@ abort(){
 
 _check_es_version() {
 	version="$1"
+  if [[ -z "$version" ]]; then
+    abort "A version is required."
+  fi
+
 	if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
 		abort "Invalid version '$version'!!!"
 	fi
@@ -60,7 +64,7 @@ _get_es_download_link() {
       ;;
   esac
   # Check if the download link exists
-  if [ ! -z "$download_link" ]; then
+  if [[ ! -z "$download_link" ]]; then
   		_=$(wget --spider --tries 1 "$download_link" 2>&1)
       if [ $? -eq 0 ]; then
         echo "$download_link"
@@ -70,20 +74,20 @@ _get_es_download_link() {
 
 get_current_es_version() {
   current_version="$(basename "$(find "$EVM_HOME" -type l -name "$ES" -exec readlink {} +)")"
-  echo "$current_version"
+  echo "$current_version" | cut -d "-" -f 2
 }
 
 install_es_version() {
   version="$1"
 	_check_es_version "$version"
 
-  if [ -d "$ES_HOME-$version" ]; then
+  if [[ -d "$ES_HOME-$version" ]]; then
     abort "Elasticsearch $version has been already installed."
   fi
 
   download_link="$(_get_es_download_link "$version")"
-  if [ -z "$download_link" ]; then
-    abort "The Elasticsearch version $version does not exist."
+  if [[ -z "$download_link" ]]; then
+    abort "Elasticsearch $version not found."
   fi
 
   echo "-> Downloading Elasticsearch $version from elastic.co"
@@ -112,8 +116,8 @@ use_es_version() {
   _check_es_version "$version"
 
   use_version="$ES_HOME-$version"
-  if [ ! -d "$use_version" ]; then
-    abort "The version $version has not installed yet."
+  if [[ ! -d "$use_version" ]]; then
+    abort "Elasticsearch $version not found. Using 'evm list' to see available versions."
   fi
   ln -sfn "$use_version" "$ES_HOME"
   echo "-> Now using Elasticsearch $version"
@@ -121,14 +125,14 @@ use_es_version() {
 
 start_current_es_version() {
   cmd="$ES_HOME/bin/elasticsearch"
-  if [ ! -x "$cmd" ]; then
-    abort "Elasticsearch has not been installed yet."
+  if [[ ! -x "$cmd" ]]; then
+    abort "No Elasticsearch version in use."
   fi
   option_config_path="$1"
-  if [ "$option_config_path" = "--config-path" ]; then
+  if [[ "$option_config_path" = "--config-path" ]]; then
     config_path="$2"
-    if [ ! -d "$config_path" ]; then
-      abort "The config path '$config_path' does not exist or cannot access."
+    if [[ ! -d "$config_path" ]]; then
+      abort "config path '$config_path' does not exist or cannot access."
     fi
     cmd="$cmd -Epath.conf=$config_path"
   fi
@@ -140,44 +144,44 @@ remove_es_version() {
   _check_es_version "$version"
 
 	removed_version="$ES-$version"
-  if [ ! -d "$EVM_HOME/$removed_version" ]; then
+  if [[ ! -d "$EVM_HOME/$removed_version" ]]; then
     abort "Elasticsearch $version has been already installed."
 	fi
 
 	current_version="$(get_current_es_version)"
-	if [ "$removed_version" = "$current_version" ]; then
-		abort "The Elasticsearch $version is in use."
+	if [[ "$version" = "$current_version" ]]; then
+		abort "Elasticsearch $version is in use."
 	fi
 
 	if rm -rf "$EVM_HOME/$removed_version"; then
-		echo "-> The Elasticsearch $version has been removed."
+		echo "-> Elasticsearch $version has been removed."
 	else
-		abort
+		abort "Couldnot remove the version $version"
 	fi
 }
 
 manage_es_plugin() {
-  if [ ! -f "$ES_HOME/bin/elasticsearch" ]; then
-    abort "Elasticsearch has not been installed yet."
+  if [[ ! -f "$ES_HOME/bin/elasticsearch" ]]; then
+    abort "No Elasticsearch version found."
   fi
   # 5.x?
   cmd="$ES_HOME/bin/elasticsearch-plugin"
   option_list="list"
   option_install="install"
   option_remove="remove"
-  if [ ! -f "$cmd" ]; then
+  if [[ ! -f "$cmd" ]]; then
     # No? Try 1.x or 2.x...
     cmd="$ES_HOME/bin/plugin"
     option_list="--$option_list"
     option_install="--$option_install"
     option_remove="--$option_remove"
-    if [ ! -f "$cmd" ]; then
+    if [[ ! -f "$cmd" ]]; then
       # No?
-      abort "Plugin command not found."
+      abort "The plugin command not found."
     fi
   fi
   option="$1"
-  if [ "x$option" == "x" ]; then
+  if [[ "x$option" == "x" ]]; then
     echo "-> Retrieving installed plugins"
     cmd="$cmd $option_list"
   else
@@ -190,7 +194,7 @@ manage_es_plugin() {
         cmd="$cmd $option_remove $plugin"
         ;;
       *)
-      abort "Unknown option. Use evm -h for help."
+      abort "Unknown plugin option. Use evm -h for help."
     esac
   fi
   ${cmd}
@@ -200,7 +204,8 @@ list_es_versions() {
   current_version=$(get_current_es_version)
   for e in $(find "$EVM_HOME" -maxdepth 1 -mindepth 1 -type d -name "$ES-*" | sort -nr); do
     version="$(basename "$e")"
-    if [ "$current_version" = "$version" ]; then
+    version="$(echo $version | cut -d "-" -f 2)"
+    if [[ "$current_version" = "$version" ]]; then
       echo -e "\033[0;32m* $version\033[0m"
     else
     	echo -e "  $version"
@@ -247,26 +252,22 @@ print_current_es_version() {
 
 main() {
 	cmd="$1"
+  args="${@:2}"
 	case "$cmd" in
 		install)
-			version="$2"
-			install_es_version "$version"
+			install_es_version "$args"
 			;;
 		use)
-			version="$2"
-			use_es_version "$version"
+			use_es_version "$args"
 			;;
 		start)
-			start_current_es_version "$2" "$3"
+			start_current_es_version "$args"
 			;;
 		remove)
-			version="$2"
-			remove_es_version "$version"
+			remove_es_version "$args"
 			;;
 		plugin)
-			option="$2"
-			plugin="$3"
-			manage_es_plugin "$option" "$plugin"
+			manage_es_plugin "$args"
 			;;
 		list)
 			list_es_versions
