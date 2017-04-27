@@ -40,17 +40,23 @@ _get_es_download_link() {
   download_file="$ES-$version.$ES_DOWNLOAD_EXT"
   case "$version" in
     5.*)
-      echo "$ES_5X_DOWNLOAD_REPO/$download_file"
+      download_link="$ES_5X_DOWNLOAD_REPO/$download_file"
       ;;
     2.*)
-      echo "$ES_2X_DOWNLOAD_REPO/$version/$download_file"
+      download_link="$ES_2X_DOWNLOAD_REPO/$version/$download_file"
       ;;
     1.*)
-      echo "$ES_1X_DOWNLOAD_REPO/$download_file"
+      download_link="$ES_1X_DOWNLOAD_REPO/$download_file"
       ;;
+    *)
+      download_link=""
   esac
-}
 
+  http_code=$(curl -Iso /dev/null -w "%{http_code}" "$download_link")
+  if [ "$http_code" -eq "200" ]; then
+    echo $download_link
+  fi
+}
 
 install_es_version() {
   version="$1"
