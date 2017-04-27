@@ -127,17 +127,18 @@ start_current_es_version() {
 
 remove_es_version() {
   version="$1"
-  uninstall_version="$ES_HOME-$version"
+  removed_version="$ES-$version"
 
-  if [ ! -d "$uninstall_version" ]; then
+  if [ ! -d "$removed_version" ]; then
     abort "The Elasticsearch $version has not been installed yet."
   fi
 
-  current_version="$(readlink "$ES_HOME")"
-  if [ "$uninstall_version" = "$current_version" ]; then
+  current_version="$(get_current_es_version)"
+  if [ "$removed_version" = "$current_version" ]; then
     abort "The Elasticsearch $version is in use."
   fi
-  rm -rf "$uninstall_version"
+
+  rm -rf "$EVM_HOME/$removed_version"
   echo "-> The Elasticsearch $version has been removed."
 }
 
@@ -186,9 +187,9 @@ list_es_versions() {
   for e in $(find "$EVM_HOME" -maxdepth 1 -mindepth 1 -type d -name "$ES-*" | sort -nr); do
     version="$(basename "$e")"
     if [ "$current_version" = "$version" ]; then
-      echo -e "\033[0;32m * $version\033[0m"
+      echo -e "\033[0;32m* $version\033[0m"
     else
-    	echo -e "   $version"
+    	echo -e "  $version"
     fi
   done
 }
@@ -223,7 +224,11 @@ EOF
 }
 
 print_version(){
-	echo "$EVM_VERSION"
+	echo "$EVM_NAME $EVM_VERSION"
+}
+
+print_current_es_version() {
+	echo "$(get_current_es_version)"
 }
 
 main() {
@@ -253,7 +258,7 @@ main() {
 			list_es_versions
 			;;
 		which)
-			get_current_es_version
+			print_current_es_version
 			;;
 		-V|--version)
 			print_version
