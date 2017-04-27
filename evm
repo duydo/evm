@@ -38,6 +38,13 @@ abort(){
   exit 3
 }
 
+_check_es_version() {
+	version="$1"
+	if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+		abort "Invalid version '$version'!!!"
+	fi
+}
+
 _get_es_download_link() {
   version="$1"
   download_file="$ES-$version.$ES_DOWNLOAD_EXT"
@@ -68,6 +75,7 @@ get_current_es_version() {
 
 install_es_version() {
   version="$1"
+	_check_es_version "$version"
 
   if [ -d "$ES_HOME-$version" ]; then
     abort "Elasticsearch $version has been already installed."
@@ -75,7 +83,7 @@ install_es_version() {
 
   download_link="$(_get_es_download_link "$version")"
   if [ -z "$download_link" ]; then
-    abort "Unknown Elasticsearch version $version"
+    abort "The Elasticsearch version $version does not exist."
   fi
 
   echo "-> Downloading Elasticsearch $version from elastic.co"
@@ -87,7 +95,7 @@ install_es_version() {
 
   echo "Installing $output_file"
   tar -xzf "$output_file" -C "$EVM_HOME/"
-  echo "-> Installed elasticsearch $version."
+  echo "-> Installed Elasticsearch $version"
 
   # Use this version if no other version in use
   current_version=$(get_current_es_version)
@@ -101,6 +109,8 @@ install_es_version() {
 
 use_es_version() {
   version="$1"
+  _check_es_version "$version"
+
   use_version="$ES_HOME-$version"
   if [ ! -d "$use_version" ]; then
     abort "The version $version has not installed yet."
@@ -127,19 +137,23 @@ start_current_es_version() {
 
 remove_es_version() {
   version="$1"
-  removed_version="$ES-$version"
+  _check_es_version "$version"
 
-  if [ ! -d "$removed_version" ]; then
-    abort "The Elasticsearch $version has not been installed yet."
-  fi
+	removed_version="$ES-$version"
+  if [ ! -d "$EVM_HOME/$removed_version" ]; then
+    abort "Elasticsearch $version has been already installed."
+	fi
 
-  current_version="$(get_current_es_version)"
-  if [ "$removed_version" = "$current_version" ]; then
-    abort "The Elasticsearch $version is in use."
-  fi
+	current_version="$(get_current_es_version)"
+	if [ "$removed_version" = "$current_version" ]; then
+		abort "The Elasticsearch $version is in use."
+	fi
 
-  rm -rf "$EVM_HOME/$removed_version"
-  echo "-> The Elasticsearch $version has been removed."
+	if rm -rf "$EVM_HOME/$removed_version"; then
+		echo "-> The Elasticsearch $version has been removed."
+	else
+		abort
+	fi
 }
 
 manage_es_plugin() {
