@@ -1,20 +1,18 @@
 #!/bin/bash
-# Simple script for managing multiple Elasticsearch versions on your development local machine.
+# Purpose: Simple script for managing multiple Elasticsearch versions on your development local machine.
+# Author: Duy Do
+#
 
 set -e
+
 SCRIPT="$0"
 
 # SCRIPT may be an arbitrarily deep series of symlinks. Loop until we have the concrete path.
-while [ -h "$SCRIPT" ] ; do
-  ls=$(ls -ld "$SCRIPT")
-  # Drop everything prior to ->
-  link=$(expr "$ls" : '.*-> \(.*\)$')
-  if expr "$link" : '/.*' > /dev/null; then
-    SCRIPT="$link"
-  else
-    SCRIPT=$(dirname "$SCRIPT")/"$link"
-  fi
-done
+if [[ -h "$SCRIPT" ]]; then
+  SCRIPT=$(readlink "$SCRIPT")
+else
+  :
+fi
 
 EVM_NAME=$(basename "$SCRIPT")
 EVM_HOME=${EVM_HOME:-"$HOME/.$EVM_NAME"}
