@@ -59,7 +59,6 @@ _get_es_download_link() {
         echo "$download_link"
       fi
   fi
-  exit 3
 }
 
 get_current_es_version() {
