@@ -39,14 +39,14 @@ abort(){
 }
 
 _check_es_version() {
-	version="$1"
+  version="$1"
   if [[ -z "$version" ]]; then
     abort "A version is required."
   fi
 
-	if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-		abort "Invalid version '$version'!!!"
-	fi
+  if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    abort "Invalid version '$version'!!!"
+  fi
 }
 
 _get_es_download_link() {
@@ -65,7 +65,7 @@ _get_es_download_link() {
   esac
   # Check if the download link exists
   if [[ ! -z "$download_link" ]]; then
-  		_=$(wget --spider --tries 1 "$download_link" 2>&1)
+      _=$(wget --spider --tries 1 "$download_link" 2>&1)
       if [ $? -eq 0 ]; then
         echo "$download_link"
       fi
@@ -79,7 +79,7 @@ get_current_es_version() {
 
 install_es_version() {
   version="$1"
-	_check_es_version "$version"
+  _check_es_version "$version"
 
   if [[ -d "$ES_HOME-$version" ]]; then
     abort "Elasticsearch $version has been already installed."
@@ -95,7 +95,7 @@ install_es_version() {
   output_file="$EVM_HOME/$ES-$version.$ES_DOWNLOAD_EXT"
   wget -nc "$download_link" -O "$output_file"
 
-	# TODO: Verify downloaded file's checksum before installing (suggested by @xluffy)
+  # TODO: Verify downloaded file's checksum before installing (suggested by @xluffy)
 
   echo "Installing $output_file"
   tar -xzf "$output_file" -C "$EVM_HOME/"
@@ -143,21 +143,21 @@ remove_es_version() {
   version="$1"
   _check_es_version "$version"
 
-	removed_version="$ES-$version"
+  removed_version="$ES-$version"
   if [[ ! -d "$EVM_HOME/$removed_version" ]]; then
     abort "Elasticsearch $version has been already installed."
-	fi
+  fi
 
-	current_version="$(get_current_es_version)"
-	if [[ "$version" = "$current_version" ]]; then
-		abort "Elasticsearch $version is in use."
-	fi
+  current_version="$(get_current_es_version)"
+  if [[ "$version" = "$current_version" ]]; then
+    abort "Elasticsearch $version is in use."
+  fi
 
-	if rm -rf "$EVM_HOME/$removed_version"; then
-		echo "-> Elasticsearch $version has been removed."
-	else
-		abort "Couldnot remove the version $version"
-	fi
+  if rm -rf "$EVM_HOME/$removed_version"; then
+    echo "-> Elasticsearch $version has been removed."
+  else
+    abort "Couldnot remove the version $version"
+  fi
 }
 
 manage_es_plugin() {
@@ -208,7 +208,7 @@ list_es_versions() {
     if [[ "$current_version" = "$version" ]]; then
       echo -e "\033[0;32m* $version\033[0m"
     else
-    	echo -e "  $version"
+      echo -e "  $version"
     fi
   done
 }
@@ -243,48 +243,48 @@ EOF
 }
 
 print_version(){
-	echo "$EVM_NAME $EVM_VERSION"
+  echo "$EVM_NAME $EVM_VERSION"
 }
 
 print_current_es_version() {
-	echo "$(get_current_es_version)"
+  echo "$(get_current_es_version)"
 }
 
 main() {
-	cmd="$1"
+  cmd="$1"
   args="${@:2}"
-	case "$cmd" in
-		install)
-			install_es_version "$args"
-			;;
-		use)
-			use_es_version "$args"
-			;;
-		start)
-			start_current_es_version "$args"
-			;;
-		remove)
-			remove_es_version "$args"
-			;;
-		plugin)
-			manage_es_plugin "$args"
-			;;
-		list)
-			list_es_versions
-			;;
-		which)
-			print_current_es_version
-			;;
-		-V|--version)
-			print_version
-			;;
-		-h|--help)
-			usage
-			;;
-		*)
-			usage
-			;;
-	esac
+  case "$cmd" in
+    install)
+      install_es_version "$args"
+      ;;
+    use)
+      use_es_version "$args"
+      ;;
+    start)
+      start_current_es_version "$args"
+      ;;
+    remove)
+      remove_es_version "$args"
+      ;;
+    plugin)
+      manage_es_plugin "$args"
+      ;;
+    list)
+      list_es_versions
+      ;;
+    which)
+      print_current_es_version
+      ;;
+    -V|--version)
+      print_version
+      ;;
+    -h|--help)
+      usage
+      ;;
+    *)
+      usage
+      ;;
+  esac
 }
 
 main "$@"
