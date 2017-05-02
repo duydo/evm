@@ -142,22 +142,22 @@ use_version() {
 
 start_current_version() {
   local current_version="$(_get_current_version)"
-	if [[ -z "${current_version}" ]]; then
+  if [[ -z "${current_version}" ]]; then
     _abort "No Elasticsearch version in use."
   fi
 
   local cmd_opts
-	while getopts ":c:" option; do
+  while getopts ":c:" option; do
     case "${option}" in
       c)
         local conf_path="$OPTARG"
         if [[ ! -d "${conf_path}" ]]; then
           _abort "Invalid config path: '${conf_path}'"
         fi
-  			case "$current_version" in
-  			  1.*|2.*)
-  				  cmd_opts="-Des.path.conf=${conf_path}"
-  				  ;;
+        case "$current_version" in
+          1.*|2.*)
+            cmd_opts="-Des.path.conf=${conf_path}"
+            ;;
           *)
             cmd_opts="-Epath.conf=${conf_path}"
             ;;
@@ -168,16 +168,16 @@ start_current_version() {
       \?)
         _abort "Unknown option: [-$OPTARG]. Use evm -h for help." ;;
     esac
-	done
-	shift "$((OPTIND -1))"
+  done
+  shift "$((OPTIND -1))"
 
-	_abort_if_too_many_arguments "$@"
+  _abort_if_too_many_arguments "$@"
 
-	local cmd="${ES_CMD}"
-	if [[ ! -z "${cmd_opts}" ]]; then
-	  cmd="${cmd} "${cmd_opts}""
-	fi
-	${cmd}
+  local cmd="${ES_CMD}"
+  if [[ ! -z "${cmd_opts}" ]]; then
+    cmd="${cmd} "${cmd_opts}""
+  fi
+  ${cmd}
 }
 
 remove_version() {
