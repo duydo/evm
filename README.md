@@ -10,27 +10,29 @@ wget https://raw.githubusercontent.com/duydo/evm/master/evm -O '/usr/local/bin/e
 
 ## Usage
 ```sh
-evm list                                           List all versions of Elasticsearch have been installed
-evm install <version>                              Install a specific Elasticsearch version
-evm remove <version>                               Remove a specific Elasticsearch version
-evm use <version>                                  Use a specific Elasticsearch version
-evm which                                          Display the current Elasticsearch version
-evm plugin [<install|remove> <plugin>]             List, install or remove an Elasticsearch plugin
-evm start [--config-path </path/to/config/dir>]    Start Elasticsearch node with/without a specific config directory
-evm -h or --help                                   Display usage information
-evm -V or --version                                Display version information
+evm  -h                                   Print help information
+evm  -V                                   Print version information
+evm  list                                 List all installed Elasticsearch versions
+evm  version                              Print the current activated Elasticsearch version
+evm  install <version>                    Install a specific Elasticsearch version
+evm  use <version>                        Use a specific Elasticsearch version
+evm  remove <version>                     Remove a specific Elasticsearch version if available
+evm  which [<version>]                    Print path to installed Elasticsearch version
+evm  plugin list                          List all installed Elasticsearch plugins
+evm  plugin <install|remove> <plugin>     Install or remove an Elasticsearch plugin
+evm  start [-c </path/to/config/dir>]     Start Elasticsearch with/without a specific config directory
 ```
 ## Example
 ```sh
-evm install 5.3.1                                  Install Elasticsearch 5.3.1
-evm use 5.3.1                                      Use Elasticsearch 5.3.1
-evm start                                          Start Elasticsearch node with the default config directory
-evm start --config-path /etc/elasticsearch         Start Elasticsearch node with /etc/elasticsearch config directory
-evm plugin install x-pack                          Install the x-pack plugin
-evm plugin remove x-pack                           Remove the x-pack plugin
+evm  install 5.3.1                        Install Elasticsearch 5.3.1
+evm  use 5.3.1                            Use Elasticsearch 5.3.1
+evm  start                                Start Elasticsearch node with the default config directory
+evm  start -c /etc/elasticsearch          Start Elasticsearch node with /etc/elasticsearch config directory
+evm  plugin install x-pack                Install the x-pack plugin
+evm  plugin remove x-pack                 Remove the x-pack plugin
 ```
 ## Note
-To remove, delete or uninstall evm - just remove the $EVM_HOME folder (usually ~/.evm)
+To uninstall, just remove the $EVM_HOME folder (usually ~/.evm)
 
 ## Licence
     This software is licensed under the Apache License, version 2 ("ALv2"), quoted below.
