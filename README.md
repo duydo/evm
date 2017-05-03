@@ -1,7 +1,7 @@
-EVM - Simple Elasticsearch Version Manager
-==========================================
+EVM - Elasticsearch Version Manager
+===================================
 
-`evm` is a simple bash script used for development to manage different versions of Elasticsearch on your local machine.
+`evm` is a **simple** bash script used for managing multiple Elasticsearch versions on your local machine.
 
 ## Installation
 Just download the `evm` script then make it executable
