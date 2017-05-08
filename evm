@@ -108,7 +108,7 @@ _get_checksum_cmd() {
 }
 
 _get_current_es_pid() {
-    echo "$(jps | grep Elasticsearch | awk '{print $1}')"
+    echo "$(ps -ef | grep -i [E]lasticsearch | awk '{print $1}')"
 }
 
 _wait_for_es_started_completely() {
