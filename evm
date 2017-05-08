@@ -81,10 +81,10 @@ _get_download_link() {
   esac
   # Check if the download link exists
   if [[ ! -z "${download_link}" ]]; then
-      _=$(wget --spider --tries 1 "${download_link}" 2>&1)
-      if [ $? -eq 0 ]; then
-        echo "${download_link}"
-      fi
+    _=$(wget --spider --tries 1 "${download_link}" 2>&1)
+    if [ $? -eq 0 ]; then
+      echo "${download_link}"
+    fi
   fi
 }
 
@@ -104,10 +104,10 @@ _get_sha_link() {
   esac
   # Check if the es link exists
   if [[ ! -z "${sha1_link}" ]]; then
-      _=$(wget --spider --tries 1 "${sha1_link}" 2>&1)
-      if [ $? -eq 0 ]; then
-        echo "${sha1_link}"
-      fi
+    _=$(wget --spider --tries 1 "${sha1_link}" 2>&1)
+    if [ $? -eq 0 ]; then
+      echo "${sha1_link}"
+    fi
   fi
 }
 
@@ -279,7 +279,7 @@ manage_plugin() {
       ;;
     *)
       _abort "Unknown command: '${plugin_sub_cmd}'. Use evm -h for help."
-    ;;
+      ;;
   esac
 
   ${cmd}
