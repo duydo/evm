@@ -81,10 +81,33 @@ _get_download_link() {
   esac
   # Check if the download link exists
   if [[ ! -z "${download_link}" ]]; then
-      _=$(wget --spider --tries 1 "${download_link}" 2>&1)
-      if [ $? -eq 0 ]; then
-        echo "${download_link}"
-      fi
+    _=$(wget --spider --tries 1 "${download_link}" 2>&1)
+    if [ $? -eq 0 ]; then
+      echo "${download_link}"
+    fi
+  fi
+}
+
+_get_sha_link() {
+  local version="$1"
+  local es_file="${ES}-${version}.${ES_DOWNLOAD_EXT}"
+  case "${version}" in
+    2.*)
+      sha1_link="${ES_2X_DOWNLOAD_REPO}/${version}/${es_file}.sha1"
+      ;;
+    1.*)
+      sha1_link="${ES_1X_DOWNLOAD_REPO}/${es_file}.sha1.txt"
+      ;;
+    *)
+      sha1_link="${ES_5X_DOWNLOAD_REPO}/${es_file}.sha1"
+      ;;
+  esac
+  # Check if the es link exists
+  if [[ ! -z "${sha1_link}" ]]; then
+    _=$(wget --spider --tries 1 "${sha1_link}" 2>&1)
+    if [ $? -eq 0 ]; then
+      echo "${sha1_link}"
+    fi
   fi
 }
 
@@ -110,7 +133,13 @@ install_version() {
   echo "Retrieving ${download_link}"
   local output_file="${EVM_HOME}/${ES}-${version}.${ES_DOWNLOAD_EXT}"
   wget -c "${download_link}" -O "${output_file}" || _abort "Could not download ${output_file}!"
-  # TODO: Verify downloaded file's checksum before installing (suggested by @xluffy)
+
+  local sha1_link="$(_get_sha_link "${version}")"
+  local sha1_value="$(curl -Ss "$sha1_link" | awk '{print $1}')"
+
+  if [[ "$(sha1sum "$output_file" | awk '{print $1}')" != "$sha1_value" ]]; then
+    _abort "File is malformed binary"
+  fi
 
   echo "Installing ${output_file}"
   tar -xzf "${output_file}" -C "${EVM_HOME}/" || _abort "Could not extract the ${output_file}, please try to install again."
@@ -250,7 +279,7 @@ manage_plugin() {
       ;;
     *)
       _abort "Unknown command: '${plugin_sub_cmd}'. Use evm -h for help."
-    ;;
+      ;;
   esac
 
   ${cmd}
