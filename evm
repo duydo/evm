@@ -106,7 +106,6 @@ _download_es() {
   local version="$1"
   local file="${ES_NAME}-${version}.${DOWNLOAD_EXT}"
   local output_file="${EVM_HOME}/${file}"
-  echo "==> Downloading Elasticsearch ${version} from elastic.co"
   local curl_opts="--fail --connect-timeout 60 --max-time 3600"
   for repo in "${ES_DOWNLOAD_REPOS[@]}"; do
     local url="${repo}/${file}"
@@ -130,6 +129,10 @@ _download_es() {
       break
     fi
   done
+
+  if [[ ! -f "${output_file}" ]]; then
+    _abort "Version ${version} not found."
+  fi
 }
 
 install_es() {
@@ -141,11 +144,11 @@ install_es() {
     _abort "Elasticsearch ${version} has been already installed."
   fi
 
+  echo "==> Try to install Elasticsearch ${version}"
   _download_es "${version}"
+
   local install_file="${EVM_HOME}/${ES_NAME}-${version}.${DOWNLOAD_EXT}"
-  if [[ ! -f "${install_file}" ]]; then
-    _abort "File '${install_file}' not found."
-  fi
+
   echo "==> Installing ${install_file} into ${EVM_HOME}/$ES_NAME-${version}"
   tar -xzf "${install_file}" -C "${EVM_HOME}/" || _abort "Could not extract the ${install_file}, please try to install again."
   # Cleanup: remove the downloaded files
