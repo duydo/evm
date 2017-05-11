@@ -235,8 +235,6 @@ print_es_running_status() {
   fi
 }
 
-
-
 remove_es() {
   local version="$1"; shift
   _abort_if_too_many_arguments "$@"

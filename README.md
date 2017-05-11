@@ -7,8 +7,8 @@ EVM - Elasticsearch Version Manager
 Just download the `evm` script then make it executable
 
 ```sh
-sudo wget -O /usr/local/bin/evm https://raw.githubusercontent.com/duydo/evm/master/evm
-sudo chmod 755 /usr/local/bin/evm
+sudo curl -o /usr/local/bin/evm https://raw.githubusercontent.com/duydo/evm/master/evm
+sudo chmod +x /usr/local/bin/evm
 ```
 
 ## Usage
