@@ -26,6 +26,7 @@ readonly ES_HOME="${EVM_HOME}/${ES_NAME}"
 readonly ES_CMD="${ES_HOME}/bin/${ES_NAME}"
 readonly ES_PLUGIN_CMD="${ES_HOME}/bin/${ES_NAME}-plugin"
 readonly ES_1X_PLUGIN_CMD="${ES_HOME}/bin/plugin"
+readonly PID_FILE="${EVM_HOME}/${ES_NAME}.pid"
 
 # Sub commands
 readonly START_CMD='start'
@@ -77,18 +78,10 @@ _get_current_es_version() {
 }
 
 _get_current_es_pid() {
-  ps -ef | grep -i [E]lasticsearch | awk '{print $2}'
-}
-
-_wait_for_es_started_completely() {
-  #TODO: Find a better way to handle this, use nc to check for now.
-  local pid="$(_get_current_es_pid)"
-  while [ "${pid}" ]; do
-    if nc -z 0.0.0.0 9300 > /dev/null 2>&1; then
-      echo "Elasticsearch $(_get_current_es_version) has been started."
-      break
-    fi
-  done
+#  ps -ef | grep -i [E]lasticsearch | awk '{print $2}'
+  if [[ -f "${PID_FILE}" ]]; then
+    cat "${PID_FILE}"
+  fi
 }
 
 _check_curl_if_available(){
@@ -177,7 +170,7 @@ use_version() {
 }
 
 start_es() {
-  local pid=$(_get_current_es_pid)
+  local pid="$(_get_current_es_pid)"
   if [[ ! -z "${pid}" ]]; then
     _abort "Elasticsearch is already running."
   fi
@@ -186,9 +179,8 @@ start_es() {
   if [[ -z "${current_version}" ]]; then
     _abort "No Elasticsearch version in use."
   fi
-
-  local cmd_opts="-d"
-  while getopts ":dc:" option; do
+  local cmd_opts="-d -p "${PID_FILE}""
+  while getopts ":c:" option; do
     case "${option}" in
       c)
         local conf_path="$OPTARG"
@@ -200,10 +192,8 @@ start_es() {
           *) cmd_opts="${cmd_opts} -Epath.conf=${conf_path}" ;;
         esac
         ;;
-      :)
-        _abort "The option [-$OPTARG] must not be empty." ;;
-      \?)
-        _abort "Unknown option: [-$OPTARG]. Use evm -h for help." ;;
+      :) _abort "The option [-$OPTARG] must not be empty." ;;
+      \?) _abort "Unknown option: [-$OPTARG]. Use evm -h for help." ;;
     esac
   done
   shift "$((OPTIND -1))"
@@ -216,8 +206,15 @@ start_es() {
   fi
 
   echo "==> Starting Elasticsearch ${current_version}"
+
   ${cmd}
-  _wait_for_es_started_completely
+
+  while true; do
+    if [[ -f "${PID_FILE}" ]]; then
+      echo "Elasticsearch $(_get_current_es_version) has been started."
+      break;
+    fi
+  done
 }
 
 stop_es() {
