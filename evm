@@ -78,10 +78,10 @@ _get_current_es_version() {
 }
 
 _get_current_es_pid() {
-#  ps -ef | grep -i [E]lasticsearch | awk '{print $2}'
-  if [[ -f "${PID_FILE}" ]]; then
-    cat "${PID_FILE}"
-  fi
+  ps -ef | grep -i [E]lasticsearch | awk '{print $2}'
+  # if [[ -f "${PID_FILE}" ]]; then
+  #   cat "${PID_FILE}"
+  # fi
 }
 
 _check_curl_if_available(){
@@ -205,12 +205,11 @@ start_es() {
     cmd="${cmd} ${cmd_opts}"
   fi
 
-  echo "==> Starting Elasticsearch ${current_version}"
-
+  echo "==> Starting Elasticsearch ${current_version}, please wait..."
   ${cmd}
-
   while true; do
-    if [[ -f "${PID_FILE}" ]]; then
+    # if [[ -f "${PID_FILE}" ]]; then
+    if nc -z -w300 0.0.0.0 9200 2>/dev/null; then
       echo "Elasticsearch $(_get_current_es_version) has been started."
       break;
     fi
@@ -225,7 +224,7 @@ stop_es() {
 
   echo "==> Stopping Elasticsearch"
   kill -SIGTERM "${pid}" || _abort "Could not stop Elasticsearch."
-  echo "Elasticsearch $(_get_current_es_version) has been stopped."
+  echo "Elasticsearch has been stopped."
 }
 
 
