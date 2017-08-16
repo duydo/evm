@@ -42,14 +42,15 @@ sudo chmod +x /usr/local/bin/evm
 To uninstall, just remove the $EVM_HOME folder (usually ~/.evm)
 
 ## TODOs:
-- Support `kibana` command with following sub commands:
+- [x] Allows `evm install` installing pre-release versions: `alpha, beta, rc`
+- [ ] Supports `kibana` command with following sub commands:
   - `kibana install`: Install Kibana for current Elasticsearch version
   - `kibana remove`: Remove Kibana
   - `kibana start`: Start Kibana
   - `kibana stop`: Stop current running Kibana
-- Provide option `-k` for `evm start` command to allow Kibana starting with Elasticsearch
-- Provide `evm update` command to allow `evm` can update itself to latest version
-- Allow `evm install` installing unstable versions: `alpha, beta, rc`
+- [ ] Provides option `-k` for `evm start` command to allow Kibana starting with Elasticsearch
+- [ ] Provides `evm update` command to allow `evm` can update itself to latest version
+
 ## Licence
     This software is licensed under the Apache License, version 2 ("ALv2"), quoted below.
 
