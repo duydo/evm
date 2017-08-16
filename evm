@@ -8,7 +8,7 @@
 # Author: Duy Do (duydo)
 # Contributors: Quang Nguyen (xluffy), Nham Le (nhamlh)
 
-readonly EVM_VERSION="0.1.5"
+readonly EVM_VERSION="0.1.6"
 
 readonly OS="$(uname | tr '[:upper:]' '[:lower:]')"
 readonly OS_TYPE="$(uname -m)"
