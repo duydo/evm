@@ -78,7 +78,7 @@ _get_current_es_version() {
 }
 
 _get_current_es_pid() {
-  ps -ef | grep -i [E]lasticsearch | awk '{print $2}'
+  ps -ef | grep -i [E]lasticsearch.pid | awk '{print $2}'
   # if [[ -f "${PID_FILE}" ]]; then
   #   cat "${PID_FILE}"
   # fi
