@@ -4,11 +4,11 @@
 # Purpose: Managing multiple Elasticsearch versions on your local development machine
 # Licence: Apache License, version 2 (http://www.apache.org/licenses/LICENSE-2.0)
 # Source: https://github.com/duydo/evm
-# Version: 0.1.5
+# Version: 0.1.7
 # Author: Duy Do (duydo)
 # Contributors: Quang Nguyen (xluffy), Nham Le (nhamlh)
 
-readonly EVM_VERSION="0.1.6"
+readonly EVM_VERSION="0.1.7"
 
 readonly OS="$(uname | tr '[:upper:]' '[:lower:]')"
 readonly OS_TYPE="$(uname -m)"
@@ -78,7 +78,7 @@ _get_current_es_version() {
 }
 
 _get_current_es_pid() {
-  ps -ef | grep -i [E]lasticsearch | awk '{print $2}'
+  ps -ef | grep -i [E]lasticsearch.pid | awk '{print $2}'
   # if [[ -f "${PID_FILE}" ]]; then
   #   cat "${PID_FILE}"
   # fi
@@ -209,7 +209,7 @@ start_es() {
   ${cmd}
   while true; do
     # if [[ -f "${PID_FILE}" ]]; then
-    if nc -z -w300 0.0.0.0 9200 2>/dev/null; then
+    if nc -z -w300 0.0.0.0 9300 2>/dev/null; then
       echo "Elasticsearch $(_get_current_es_version) has been started."
       break;
     fi
