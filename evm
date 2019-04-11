@@ -4,11 +4,11 @@
 # Purpose: Managing multiple Elasticsearch versions on your local development machine
 # Licence: Apache License, version 2 (http://www.apache.org/licenses/LICENSE-2.0)
 # Source: https://github.com/duydo/evm
-# Version: 0.1.7
+# Version: 0.1.8
 # Author: Duy Do (duydo)
 # Contributors: Quang Nguyen (xluffy), Nham Le (nhamlh)
 
-readonly EVM_VERSION="0.1.7"
+readonly EVM_VERSION="0.1.8"
 
 readonly OS="$(uname | tr '[:upper:]' '[:lower:]')"
 readonly OS_TYPE="$(uname -m)"
@@ -79,9 +79,6 @@ _get_current_es_version() {
 
 _get_current_es_pid() {
   ps -ef | grep -i [E]lasticsearch.pid | awk '{print $2}'
-  # if [[ -f "${PID_FILE}" ]]; then
-  #   cat "${PID_FILE}"
-  # fi
 }
 
 _check_curl_if_available(){
@@ -94,10 +91,20 @@ _detect_checksum_cmd() {
   echo "${cmd}"
 }
 
+_get_downloaded_file_name(){
+  local version="$1"
+  if [[ ${version:0:1} -ge 7 ]] ; then
+    echo "${ES_NAME}-${version}-${OS}-${OS_TYPE}.${DOWNLOAD_EXT}"
+  else
+    echo "${ES_NAME}-${version}.${DOWNLOAD_EXT}"
+  fi
+}
+
 _download_es() {
   _check_curl_if_available
+
   local version="$1"
-  local file="${ES_NAME}-${version}.${DOWNLOAD_EXT}"
+  local file="$(_get_downloaded_file_name "$version")"
   local output_file="${EVM_HOME}/${file}"
   local curl_opts="--fail --connect-timeout 60 --max-time 3600"
   for repo in "${ES_DOWNLOAD_REPOS[@]}"; do
@@ -138,10 +145,10 @@ install_es() {
   fi
 
   echo "==> Try to install Elasticsearch ${version}"
+
   _download_es "${version}"
 
-  local install_file="${EVM_HOME}/${ES_NAME}-${version}.${DOWNLOAD_EXT}"
-
+  local install_file="${EVM_HOME}/$(_get_downloaded_file_name "$version")"
   echo "==> Installing ${install_file} into ${EVM_HOME}/$ES_NAME-${version}"
   tar -xzf "${install_file}" -C "${EVM_HOME}/" || _abort "Could not extract the ${install_file}, please try to install again."
   # Cleanup: remove the downloaded files
