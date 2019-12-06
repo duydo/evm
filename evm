@@ -215,10 +215,16 @@ start_es() {
   echo "==> Starting Elasticsearch ${current_version}, please wait..."
   ${cmd}
   while true; do
-    # if [[ -f "${PID_FILE}" ]]; then
-    if nc -z -w300 0.0.0.0 9300 2>/dev/null; then
-      echo "Elasticsearch $(_get_current_es_version) has been started."
-      break;
+    if hash nc 2>/dev/null; then
+        if nc -z -w300 0.0.0.0 9300 2>/dev/null; then
+            echo "Elasticsearch $(_get_current_es_version) has been started."
+            break;
+        fi
+    else
+        if [[ -f "${PID_FILE}" ]]; then
+            echo "Elasticsearch $(_get_current_es_version) has been started."
+            break;
+        fi
     fi
   done
 }
