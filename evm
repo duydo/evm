@@ -4,7 +4,7 @@
 # Purpose: Managing multiple Elasticsearch versions on your local development machine
 # Licence: Apache License, version 2 (http://www.apache.org/licenses/LICENSE-2.0)
 # Source: https://github.com/duydo/evm
-# Version: 0.1.8
+# Version: 0.1.9
 # Author: Duy Do (duydo)
 # Contributors: Quang Nguyen (xluffy), Nham Le (nhamlh)
 
@@ -93,8 +93,18 @@ _detect_checksum_cmd() {
 
 _get_downloaded_file_name(){
   local version="$1"
-  if [[ ${version:0:1} -ge 7 ]] ; then
-    echo "${ES_NAME}-${version}-${OS}-${OS_TYPE}.${DOWNLOAD_EXT}"
+  local version_array=(${version//./ })
+  local os_type="$OS_TYPE"
+  local m1_platform="arm64"
+  if [[ ${version_array[0]} -ge 7 ]] ; then
+    if [[ "$OS_TYPE" == "$m1_platform" ]]; then
+      if [[ (${version_array[0]} -eq 7) && (${version_array[1]} -le 15) ]] ; then
+        os_type="x86_64"
+      else
+        os_type="aarch64"
+      fi
+    fi
+    echo "${ES_NAME}-${version}-${OS}-${os_type}.${DOWNLOAD_EXT}"
   else
     echo "${ES_NAME}-${version}.${DOWNLOAD_EXT}"
   fi
