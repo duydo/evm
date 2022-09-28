@@ -6,9 +6,8 @@
 # Source: https://github.com/duydo/evm
 # Version: 0.1.9
 # Author: Duy Do (duydo)
-# Contributors: Quang Nguyen (xluffy), Nham Le (nhamlh)
 
-readonly EVM_VERSION="0.1.8"
+readonly EVM_VERSION="0.1.9"
 
 readonly OS="$(uname | tr '[:upper:]' '[:lower:]')"
 readonly OS_TYPE="$(uname -m)"
