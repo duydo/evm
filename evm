@@ -41,7 +41,7 @@ readonly WHICH_CMD='which'
 
 readonly ES_DOWNLOAD_REPOS=("https://artifacts.elastic.co/downloads/${ES_NAME}" "https://download.elastic.co/${ES_NAME}/${ES_NAME}")
 readonly DOWNLOAD_EXT="tar.gz"
-readonly DOWNLOAD_CHECKSUM_EXT="sha1"
+readonly DOWNLOAD_CHECKSUM_EXTS=("sha512" "sha1" "sha1.txt")
 
 # First use?
 if [[ ! -d "${EVM_HOME}" ]]; then
@@ -53,7 +53,7 @@ _abort() {
   exit 1
 }
 
-_abort_if_too_many_arguments() {
+_check_no_args() {
   if [[ "$#" -gt 0 ]]; then
     _abort "Unknown arguments: '$*'"
   fi
@@ -85,13 +85,6 @@ _check_curl_if_available() {
   hash curl 2>/dev/null || _abort "The 'curl' program is required, please install 'curl' first."
 }
 
-_detect_checksum_cmd() {
-  local cmd="shasum"
-  hash "${cmd}" 2>/dev/null || cmd="sha1sum"
-  hash "${cmd}" 2>/dev/null || _abort "sha1sum or shasum command not found."
-  echo "${cmd}"
-}
-
 _get_downloaded_file_name() {
   local version="$1"
   local version_array=(${version//./ })
@@ -111,28 +104,36 @@ _get_downloaded_file_name() {
   fi
 }
 
+_url_exist() {
+  local url="$1"
+  curl --head --silent --fail --output /dev/null --connect-timeout 60 --max-time 60 "${url}"
+}
+
 _download_es() {
   _check_curl_if_available
-
   local version="$1"
   local file="$(_get_downloaded_file_name "$version")"
   local output_file="${EVM_HOME}/${file}"
-  local curl_opts="--fail --connect-timeout 60 --max-time 3600"
   for repo in "${ES_DOWNLOAD_REPOS[@]}"; do
     local url="${repo}/${file}"
-    if curl --head --silent ${curl_opts} "${url}" >/dev/null; then
+    if _url_exist "${url}"; then
       echo "==> Downloading ${url}"
-      curl -# -Lo "${output_file}" ${curl_opts} "${url}" || _abort "Could not download file ${url}"
-
-      echo "==> Verifying checksum for '${output_file}'"
-      local sha1_urls=("${url}.sha1" "${url}.sha1.txt")
-      for sha1_url in "${sha1_urls[@]}"; do
-        if curl --head --silent ${curl_opts} "${sha1_url}" >/dev/null; then
-          local sha1="$(curl -LSs ${curl_opts} "${sha1_url}" | awk '{print $1}')"
-          local check_sum_cmd="$(_detect_checksum_cmd)"
-          local downloaded_sha1="$("${check_sum_cmd}" "${output_file}" | awk '{print $1}')"
-          if [[ ! "${downloaded_sha1}" == "${sha1}" ]]; then
-            _abort "Checksum mismatched for '${output_file}'. Expected: ${sha1}, Received: ${downloaded_sha1}"
+      curl --connect-timeout 60 --max-time 3600 -#Lfo "${output_file}" "${url}" || _abort "Could not download ${url}"
+      echo "==> Verifying checksum for ${output_file}"
+      local checksum_cmd="shasum"
+      for ext in "${DOWNLOAD_CHECKSUM_EXTS[@]}"; do
+        local sha_url="${url}.${ext}"
+        if _url_exist "${sha_url}"; then
+          local checksum="$(curl -LSfs "${sha_url}" | awk '{print $1}')"
+          if [[ "${ext}" == "sha512" ]]; then
+            # From v6.0.0, Elastic officially uses SHA-512 checksum
+            checksum_cmd="${checksum_cmd} -a 512"
+          fi
+          local downloaded_checksum="$(${checksum_cmd} "${output_file}" | awk '{print $1}')"
+          if [[ "${downloaded_checksum}" == "${checksum}" ]]; then
+            echo "Checksum matched for ${output_file}"
+          else
+            _abort "Checksum mismatched for ${output_file}. Expected: ${checksum}, Received: ${downloaded_checksum}"
           fi
           break
         fi
@@ -142,42 +143,42 @@ _download_es() {
   done
 
   if [[ ! -f "${output_file}" ]]; then
-    _abort "Version ${version} not found."
+    _abort "Version ${version} not found"
   fi
 }
 
 evm_install() {
   local version="$1"
-  shift
-  _abort_if_too_many_arguments "$@"
   _check_version "${version}"
 
+  shift
+  _check_no_args "$@"
+
   if [[ -d "${ES_HOME}-${version}" ]]; then
-    _abort "Elasticsearch ${version} has been already installed."
+    _abort "Elasticsearch ${version} already installed"
   fi
 
   echo "==> Try to install Elasticsearch ${version}"
 
   _download_es "${version}"
 
-  local install_file="${EVM_HOME}/$(_get_downloaded_file_name "$version")"
-  echo "==> Installing ${install_file} into ${EVM_HOME}/$ES_NAME-${version}"
-  tar -xzf "${install_file}" -C "${EVM_HOME}/" || _abort "Could not extract the ${install_file}, please try to install again."
+  local installed_file="${EVM_HOME}/$(_get_downloaded_file_name "$version")"
+  echo "==> Installing ${installed_file} into ${EVM_HOME}/$ES_NAME-${version}"
+  tar -xzf "${installed_file}" -C "${EVM_HOME}/" || _abort "Could not extract the ${installed_file}, please try to install again"
   # Cleanup: remove the downloaded files
-  rm -rf "${install_file}" || echo "Clean failed. Could not remove the downloaded file ${install_file}!"
+  rm -rf "${installed_file}" || echo "Clean failed. Could not remove the downloaded file ${installed_file}!"
 
-  local current_version="$(_get_current_version)"
-  if [[ -z "${current_version}" ]]; then
+  if [[ -z "$(_get_current_version)" ]]; then
     use_version "${version}"
   fi
 
-  echo "Elasticsearch ${version} has been installed."
+  echo "Installed Elasticsearch ${version} successfully"
 }
 
 evm_use() {
   local version="$1"
   shift
-  _abort_if_too_many_arguments "$@"
+  _check_no_args "$@"
   _check_version "${version}"
 
   local evm_use="${ES_HOME}-${version}"
@@ -218,7 +219,7 @@ evm_start() {
   done
   shift "$((OPTIND - 1))"
 
-  _abort_if_too_many_arguments "$@"
+  _check_no_args "$@"
 
   local cmd="${ES_CMD}"
   if [[ ! -z "${cmd_opts}" ]]; then
@@ -243,7 +244,7 @@ evm_start() {
 }
 
 evm_stop() {
-  _abort_if_too_many_arguments "$@"
+  _check_no_args "$@"
   local pid="$(_get_current_pid)"
   if [[ -z "${pid}" ]]; then
     _abort "Elasticsearch is not running."
@@ -255,7 +256,7 @@ evm_stop() {
 }
 
 evm_status() {
-  _abort_if_too_many_arguments "$@"
+  _check_no_args "$@"
   local pid="$(_get_current_pid)"
   if [[ ! -z "${pid}" ]]; then
     echo "Elasticsearch $(_get_current_version) is running."
@@ -267,7 +268,7 @@ evm_status() {
 evm_remove() {
   local version="$1"
   shift
-  _abort_if_too_many_arguments "$@"
+  _check_no_args "$@"
   _check_version "${version}"
 
   local removed_version_folder="${ES_HOME}-${version}"
@@ -311,13 +312,13 @@ evm_plugin() {
   shift
   case "$plugin_sub_cmd" in
   ${LIST_CMD})
-    _abort_if_too_many_arguments "$@"
+    _check_no_args "$@"
     cmd="$cmd $list_opt"
     ;;
   ${INSTALL_CMD})
     local plugin="$1"
     shift
-    _abort_if_too_many_arguments "$@"
+    _check_no_args "$@"
     if [[ -z "${plugin}" ]]; then
       _abort "A plugin is required."
     fi
@@ -326,7 +327,7 @@ evm_plugin() {
   ${REMOVE_CMD})
     local plugin="$1"
     shift
-    _abort_if_too_many_arguments "$@"
+    _check_no_args "$@"
     if [[ -z "${plugin}" ]]; then
       _abort "A plugin is required."
     fi
@@ -340,7 +341,7 @@ evm_plugin() {
 }
 
 evm_list() {
-  _abort_if_too_many_arguments "$@"
+  _check_no_args "$@"
   local current_version="$(_get_current_version)"
   for e in $(find "${EVM_HOME}" -maxdepth 1 -mindepth 1 -type d -name "${ES_NAME}-*" | sort -nr); do
     local version="$(basename "${e}")"
@@ -358,7 +359,7 @@ evm_V() {
 }
 
 evm_version() {
-  _abort_if_too_many_arguments "$@"
+  _check_no_args "$@"
   _get_current_version
 }
 
@@ -436,7 +437,7 @@ main() {
   "${PLUGIN_CMD}") evm_plugin "$@" ;;
   "${WHICH_CMD}") evm_which "$@" ;;
   "${LIST_CMD}") evm_list "$@" ;;
-  "${VERSION_CMD}") evm_version "$@";;
+  "${VERSION_CMD}") evm_version "$@" ;;
   *) evm_help ;;
   esac
 }
