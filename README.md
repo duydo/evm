@@ -14,7 +14,7 @@ sudo chmod +x /usr/local/bin/evm
 
 ## Usage
 
-```sh
+```
  evm -h                                     Print help information
  evm -V                                     Print version information
  evm list                                   List all installed Elasticsearch versions
@@ -25,18 +25,18 @@ sudo chmod +x /usr/local/bin/evm
  evm which [<version>]                      Print path to installed Elasticsearch version
  evm plugin list                            List all installed Elasticsearch plugins
  evm plugin <install|remove> <plugin>       Install or remove an Elasticsearch plugin
- evm start [-c </path/to/config/dir>]       Start Elasticsearch in the background with a specific config directory (optional)
- evm stop                                   Stop Elasticsearch if running
+ evm start [-h|-E <KeyValuePair>]           Start Elasticsearch in the background
+ evm stop                                   Stop Elasticsearch if it is running
  evm status                                 Check if Elasticsearch is running
 ```
 
 ## Example
 
-```sh
+```
  evm install 5.3.1                          Install Elasticsearch 5.3.1
  evm use 5.3.1                              Use Elasticsearch 5.3.1
- evm start                                  Start Elasticsearch node with the default config directory
- evm start -c /etc/elasticsearch            Start Elasticsearch node with /etc/elasticsearch config directory
+ evm start                                  Start Elasticsearch
+ evm start -Expack.security.enabled=true    Start Elasticsearch with enabled security
  evm status                                 Print Elasticsearch running status
  evm stop                                   Stop Elasticsearch if it is running
  evm plugin install x-pack                  Install the x-pack plugin
