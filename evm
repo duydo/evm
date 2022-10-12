@@ -220,7 +220,7 @@ evm_install() {
   rm -rf "${downloaded_file}" || echo "Clean failed. Could not remove the downloaded file ${downloaded_file}!"
 
   if [[ -z "$(_get_current_version)" ]]; then
-    use_version "${version}"
+    evm_use "${version}"
   fi
 
   echo "Installed Elasticsearch ${version} successfully"
