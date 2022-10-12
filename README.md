@@ -4,6 +4,7 @@ EVM - Elasticsearch Version Manager
 `EVM` is a **simple** bash script used for managing multiple Elasticsearch versions on your local machine.
 
 ## Installation
+
 Just download the `evm` script then make it executable
 
 ```sh
@@ -12,7 +13,8 @@ sudo chmod +x /usr/local/bin/evm
 ```
 
 ## Usage
-```sh
+
+```
  evm -h                                     Print help information
  evm -V                                     Print version information
  evm list                                   List all installed Elasticsearch versions
@@ -23,35 +25,36 @@ sudo chmod +x /usr/local/bin/evm
  evm which [<version>]                      Print path to installed Elasticsearch version
  evm plugin list                            List all installed Elasticsearch plugins
  evm plugin <install|remove> <plugin>       Install or remove an Elasticsearch plugin
- evm start [-c </path/to/config/dir>]       Start Elasticsearch in the background with a specific config directory (optional)
- evm stop                                   Stop Elasticsearch if running
+ evm start [-h|-E <KeyValuePair>]           Start Elasticsearch in the background
+ evm stop                                   Stop Elasticsearch if it is running
  evm status                                 Check if Elasticsearch is running
 ```
+
 ## Example
-```sh
+
+```
  evm install 5.3.1                          Install Elasticsearch 5.3.1
  evm use 5.3.1                              Use Elasticsearch 5.3.1
- evm start                                  Start Elasticsearch node with the default config directory
- evm start -c /etc/elasticsearch            Start Elasticsearch node with /etc/elasticsearch config directory
+ evm start                                  Start Elasticsearch
+ evm start -Expack.security.enabled=true    Start Elasticsearch with enabled security
  evm status                                 Print Elasticsearch running status
  evm stop                                   Stop Elasticsearch if it is running
  evm plugin install x-pack                  Install the x-pack plugin
  evm plugin remove x-pack                   Remove the x-pack plugin
 ```
-## Note
+
+## Uninstall
+
 To uninstall, just remove the $EVM_HOME folder (usually ~/.evm)
 
-## TODOs:
-- [x] Allows `evm install` installing pre-release versions: `alpha, beta, rc`
-- [ ] ~~Supports `kibana` command with following sub commands~~:
-  - ~~`kibana install`: Install Kibana for current Elasticsearch version~~
-  - ~~`kibana remove`: Remove Kibana~~
-  - ~~`kibana start`: Start Kibana~~
-  - ~~`kibana stop`: Stop current running Kibana~~
-- [ ] ~~Provides option `-k` for `evm start` command to allow Kibana starting with Elasticsearch~~
-- [ ] ~~Provides `evm update` command to allow `evm` can update itself to latest version~~
+## Contributors
+
+<a href="https://github.com/duydo/evm/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=duydo/evm"/>
+</a>
 
 ## Licence
+
     This software is licensed under the Apache License, version 2 ("ALv2"), quoted below.
 
     Copyright 2017 Duy Do
