@@ -6,7 +6,6 @@
 # Source: https://github.com/duydo/evm
 # Version: 1.0.0
 # Author: Duy Do (duydo)
-set -eo pipefail
 
 readonly EVM_VERSION="1.0.0"
 
