@@ -4,10 +4,11 @@
 # Purpose: Managing multiple Elasticsearch versions on your local development machine
 # Licence: Apache License, version 2 (http://www.apache.org/licenses/LICENSE-2.0)
 # Source: https://github.com/duydo/evm
-# Version: 0.1.9
+# Version: 1.0.0
 # Author: Duy Do (duydo)
+set -eo pipefail
 
-readonly EVM_VERSION="0.1.9"
+readonly EVM_VERSION="1.0.0"
 
 readonly OS="$(uname | tr '[:upper:]' '[:lower:]')"
 readonly OS_TYPE="$(uname -m)"
@@ -69,20 +70,26 @@ _check_version() {
   fi
 }
 
+_check_version_in_use() {
+  if [[ -z "$(_get_current_version)" ]]; then
+    _abort "No version in use. Run 'evm use <version>' first"
+  fi
+}
+
 _get_current_version() {
-  local path="$(find "${EVM_HOME}" -type l -name "${ES_NAME}" -exec readlink {} +)"
-  if [[ ! -z "${path}" ]]; then
+  local path="$(find "${EVM_HOME}" -maxdepth 1 -type l -name "${ES_NAME}" -exec readlink {} +)"
+  if [[ -n "${path}" ]]; then
     local current_version="$(basename "${path}")"
     echo "${current_version#*-}"
   fi
 }
 
 _get_current_pid() {
-  ps -ef | grep -i [E]lasticsearch.pid | awk '{print $2}'
+  ps -ef | awk '/[E]lasticsearch/ {print $2}'
 }
 
 _check_curl_if_available() {
-  hash curl 2>/dev/null || _abort "The 'curl' program is required, please install 'curl' first."
+  hash curl 2>/dev/null || _abort "The 'curl' program is required, please install 'curl' first"
 }
 
 _get_downloaded_file_name() {
@@ -106,7 +113,7 @@ _get_downloaded_file_name() {
 
 _url_exist() {
   local url="$1"
-  curl --head --silent --fail --output /dev/null --connect-timeout 60 --max-time 60 "${url}"
+  curl --head --location --silent --fail --output /dev/null --connect-timeout 60 --max-time 60 "${url}"
 }
 
 _download_es() {
@@ -119,7 +126,9 @@ _download_es() {
     if _url_exist "${url}"; then
       echo "==> Downloading ${url}"
       curl --connect-timeout 60 --max-time 3600 -#Lfo "${output_file}" "${url}" || _abort "Could not download ${url}"
-      echo "==> Verifying checksum for ${output_file}"
+      echo "Downloaded ${file}"
+
+      echo "==> Verifying checksum for ${file}"
       local checksum_cmd="shasum"
       for ext in "${DOWNLOAD_CHECKSUM_EXTS[@]}"; do
         local sha_url="${url}.${ext}"
@@ -131,9 +140,9 @@ _download_es() {
           fi
           local downloaded_checksum="$(${checksum_cmd} "${output_file}" | awk '{print $1}')"
           if [[ "${downloaded_checksum}" == "${checksum}" ]]; then
-            echo "Checksum matched for ${output_file}"
+            echo "Checksum matched for ${file}"
           else
-            _abort "Checksum mismatched for ${output_file}. Expected: ${checksum}, Received: ${downloaded_checksum}"
+            _abort "Checksum mismatched for ${file}. Expected: ${checksum}, Received: ${downloaded_checksum}"
           fi
           break
         fi
@@ -147,9 +156,53 @@ _download_es() {
   fi
 }
 
+_evm_start_help() {
+  cat <<EOF
+  Start Elasticsearch
+
+  Usage: evm start [options]
+
+  Options:
+  -h                     Show help
+  -E <KeyValuePair>      Configure a setting. See https://www.elastic.co/guide/en/elasticsearch/reference/current/settings.html
+
+EOF
+}
+
+_evm_plugin_help() {
+  cat <<'EOF'
+Manage Elasticsearch plugins
+Usage: evm plugin [options] [<command>] [<arguments>]
+
+Options:
+  -h        Show help information
+Commands:
+  list                List all installed plugins
+  install <plugin>    Install a plugin
+  remove <plugin>     Remove an installed plugin from Elasticsearch
+
+EOF
+}
+
+_wait_for_es_started_completely() {
+  local current_version="$(_get_current_version)"
+  local t=0
+  until curl -s 0.0.0.0:9200 | grep -q "${current_version}"; do
+    if [[ -z "$(_get_current_pid)" ]]; then
+      _abort "Cannot start Elasticsearch. Please check if Elasticsearch ${current_version} is compatible with current JVM"
+    fi
+    sleep 1
+    ((t++))
+    if [[ ${t} -eq 300 ]]; then
+      _abort "It takes too long to start Elasticsearch. Program will exit"
+    fi
+  done
+  echo "Started Elasticsearch ${current_version} successfully"
+}
+
 evm_install() {
-  local version="$1"
-  _check_version "${version}"
+  local version="${1:-}"
+  _check_version "${version}" "Usage: 'evm install <version>' to install"
 
   shift
   _check_no_args "$@"
@@ -159,14 +212,12 @@ evm_install() {
   fi
 
   echo "==> Try to install Elasticsearch ${version}"
-
   _download_es "${version}"
-
-  local installed_file="${EVM_HOME}/$(_get_downloaded_file_name "$version")"
-  echo "==> Installing ${installed_file} into ${EVM_HOME}/$ES_NAME-${version}"
-  tar -xzf "${installed_file}" -C "${EVM_HOME}/" || _abort "Could not extract the ${installed_file}, please try to install again"
+  local downloaded_file="${EVM_HOME}/$(_get_downloaded_file_name "$version")"
+  echo "==> Installing $(basename "${downloaded_file}")"
+  tar -xzf "${downloaded_file}" -C "${EVM_HOME}/" || _abort "Could not extract the ${downloaded_file}, please try to install again"
   # Cleanup: remove the downloaded files
-  rm -rf "${installed_file}" || echo "Clean failed. Could not remove the downloaded file ${installed_file}!"
+  rm -rf "${downloaded_file}" || echo "Clean failed. Could not remove the downloaded file ${downloaded_file}!"
 
   if [[ -z "$(_get_current_version)" ]]; then
     use_version "${version}"
@@ -176,120 +227,136 @@ evm_install() {
 }
 
 evm_use() {
-  local version="$1"
-  shift
-  _check_no_args "$@"
+  local version="${1:-}"
   _check_version "${version}"
 
-  local evm_use="${ES_HOME}-${version}"
+  shift
+  _check_no_args "$@"
+
+  if [[ -n "$(_get_current_pid)" ]]; then
+    _abort "Elasticsearch $(_get_current_version) is running, stop it before using another version"
+  fi
+
+  if [[ "${version}" = "$(_get_current_version)" ]]; then
+    _abort "Version ${version} is already in use"
+  fi
+
+  local use_version="${ES_HOME}-${version}"
   if [[ ! -d "${use_version}" ]]; then
-    _abort "Elasticsearch ${version} not found."
+    echo "Elasticsearch ${version} not found. Below are versions you installed:"
+    evm_list | xargs
+    exit 0
   fi
 
   ln -sfn "${use_version}" "${ES_HOME}" || _abort "Could not create symbolic link ${ES_HOME} => ${use_version}"
-  echo "Now using Elasticsearch ${version}"
+  echo "Used Elasticsearch ${version}"
 }
 
 evm_start() {
   local pid="$(_get_current_pid)"
-  if [[ ! -z "${pid}" ]]; then
-    _abort "Elasticsearch is already running."
+  if [[ -n "${pid}" ]]; then
+    _abort "Elasticsearch already started"
   fi
 
-  local current_version="$(_get_current_version)"
-  if [[ -z "${current_version}" ]]; then
-    _abort "No Elasticsearch version in use."
-  fi
+  _check_version_in_use
+
   local cmd_opts="-d -p "${PID_FILE}""
-  while getopts ":c:" option; do
-    case "${option}" in
-    c)
-      local conf_path="$OPTARG"
-      if [[ ! -d "${conf_path}" ]]; then
-        _abort "Invalid config path: '${conf_path}'"
-      fi
-      case "$current_version" in
-      1.* | 2.*) cmd_opts="${cmd_opts} -Des.path.conf=${conf_path}" ;;
-      *) cmd_opts="${cmd_opts} -Epath.conf=${conf_path}" ;;
-      esac
+  while getopts ":hE:" opt; do
+    case "${opt}" in
+    h)
+      _evm_start_help
+      exit 0
       ;;
-    :) _abort "The option [-$OPTARG] must not be empty." ;;
-    \?) _abort "Unknown option: [-$OPTARG]. Use evm -h for help." ;;
+    E) cmd_opts="${cmd_opts} -${opt}${OPTARG}" ;;
+    :) _abort "The option [-$OPTARG] must not be empty" ;;
+    \?) _abort "Unknown option: [-$OPTARG]. Use 'evm start -h' for help" ;;
     esac
   done
   shift "$((OPTIND - 1))"
 
   _check_no_args "$@"
 
-  local cmd="${ES_CMD}"
-  if [[ ! -z "${cmd_opts}" ]]; then
-    cmd="${cmd} ${cmd_opts}"
-  fi
-
-  echo "==> Starting Elasticsearch ${current_version}, please wait..."
-  ${cmd}
-  while true; do
-    if hash nc 2>/dev/null; then
-      if nc -z -w300ms 0.0.0.0 9300 2>/dev/null; then
-        echo "Elasticsearch $(_get_current_version) has been started."
-        break
-      fi
-    else
-      if [[ -f "${PID_FILE}" ]]; then
-        echo "Elasticsearch $(_get_current_version) has been started."
-        break
-      fi
+  local current_version="$(_get_current_version)"
+  local major="$(echo "${current_version}" | cut -d "." -f 1)"
+  if [[ ${major} -gt 7 ]]; then
+    if ! echo "${cmd_opts}" | grep -q "xpack.security.enabled"; then
+      # Disable security by default
+      cmd_opts="${cmd_opts} -Expack.security.enabled=false"
     fi
-  done
+  fi
+  local cmd="${ES_CMD} ${cmd_opts}"
+  echo "==> Starting Elasticsearch ${current_version}, please wait..."
+  ${cmd} || exit 1
+  _wait_for_es_started_completely
 }
 
 evm_stop() {
   _check_no_args "$@"
+
   local pid="$(_get_current_pid)"
   if [[ -z "${pid}" ]]; then
-    _abort "Elasticsearch is not running."
+    _abort "Elasticsearch is not started"
   fi
 
-  echo "==> Stopping Elasticsearch"
-  kill -SIGTERM "${pid}" || _abort "Could not stop Elasticsearch."
-  echo "Elasticsearch has been stopped."
+  echo "==> Stopping Elasticsearch..."
+  kill -SIGTERM "${pid}" || _abort "Could not stop Elasticsearch"
+  until [ -z "$(_get_current_pid)" ]; do sleep 1; done
+  echo "Stopped Elasticsearch successfully"
+
 }
 
 evm_status() {
   _check_no_args "$@"
   local pid="$(_get_current_pid)"
-  if [[ ! -z "${pid}" ]]; then
-    echo "Elasticsearch $(_get_current_version) is running."
+  if [[ -n "${pid}" ]]; then
+    echo "Elasticsearch $(_get_current_version) is running. PID: ${pid}"
   else
-    echo "Elasticsearch is not running."
+    echo "Elasticsearch is not running"
   fi
 }
 
 evm_remove() {
-  local version="$1"
+  local version="${1:-}"
+  _check_version "${version}"
+
   shift
   _check_no_args "$@"
-  _check_version "${version}"
 
   local removed_version_folder="${ES_HOME}-${version}"
   if [[ ! -d "${removed_version_folder}" ]]; then
-    _abort "Elasticsearch ${version} not found."
+    _abort "Elasticsearch ${version} not found"
   fi
 
   local current_version="$(_get_current_version)"
   if [[ "${version}" = "${current_version}" ]]; then
-    _abort "Could not remove Elasticsearch ${version}, it is in use."
+    _abort "Could not remove Elasticsearch ${version}, it is in use"
   fi
 
-  rm -rf "${removed_version_folder}" || _abort "Could not remove the version ${version}."
-  echo "Elasticsearch ${version} has been removed."
+  rm -rf "${removed_version_folder}" || _abort "Could not remove the version ${version}"
+  echo "Elasticsearch ${version} has been removed"
 }
 
 evm_plugin() {
-  local current_version="$(_get_current_version)"
-  if [[ -z "${current_version}" ]]; then
-    _abort "No Elasticsearch version in use. Use evm -h for help."
+
+  while getopts ":h" opt; do
+    case "${opt}" in
+    h)
+      _evm_plugin_help
+      exit 0
+      ;;
+    \?) _abort "Unknown option: -${OPTARG}. Run 'evm plugin -h' for help" ;;
+    esac
+  done
+  shift "$((OPTIND - 1))"
+
+  local subcmd="${1:-}"
+  if [[ -z "${subcmd}" ]]; then
+    _abort "Missing a command. Run 'evm plugin -h' for help"
   fi
+  shift
+
+  _check_version_in_use
+  local current_version="$(_get_current_version)"
 
   local list_opt="${LIST_CMD}"
   local install_opt="${INSTALL_CMD}"
@@ -305,51 +372,49 @@ evm_plugin() {
   *) cmd="${ES_PLUGIN_CMD}" ;;
   esac
   if [ ! -x "$cmd" ]; then
-    _abort "The Elasticsearch plugin command not found or unexecutable."
+    _abort "Elasticsearch plugin command not found or non-executable"
   fi
 
-  local plugin_sub_cmd="$1"
-  shift
-  case "$plugin_sub_cmd" in
+  case "${subcmd}" in
   ${LIST_CMD})
     _check_no_args "$@"
     cmd="$cmd $list_opt"
     ;;
   ${INSTALL_CMD})
-    local plugin="$1"
+    local plugin="${1:-}"
+    if [[ -z "${plugin}" ]]; then
+      _abort "A plugin is required"
+    fi
     shift
     _check_no_args "$@"
-    if [[ -z "${plugin}" ]]; then
-      _abort "A plugin is required."
-    fi
     cmd="$cmd $install_opt ${plugin}"
     ;;
   ${REMOVE_CMD})
-    local plugin="$1"
+    local plugin="${1:-}"
+    if [[ -z "${plugin}" ]]; then
+      _abort "A plugin is required"
+    fi
     shift
     _check_no_args "$@"
-    if [[ -z "${plugin}" ]]; then
-      _abort "A plugin is required."
-    fi
     cmd="$cmd $remove_opt ${plugin}"
     ;;
   *)
-    _abort "Unknown command: '${plugin_sub_cmd}'. Use evm -h for help."
+    _abort "Unknown command: '${subcmd}'. Use evm -h for help."
     ;;
   esac
-  ${cmd}
+  ${cmd} || exit 1
 }
 
 evm_list() {
   _check_no_args "$@"
   local current_version="$(_get_current_version)"
-  for e in $(find "${EVM_HOME}" -maxdepth 1 -mindepth 1 -type d -name "${ES_NAME}-*" | sort -nr); do
+  for e in $(find "${EVM_HOME}" -maxdepth 1 -type d -name "${ES_NAME}-*" | sort -nr); do
     local version="$(basename "${e}")"
-    version="$(echo "${version#*-}")"
+    version="${version#*-}"
     if [[ "${current_version}" = "${version}" ]]; then
-      echo -e "\033[0;32m* ${version}\033[0m"
+      echo -e "\033[0;32m${version} (in use)\033[0m"
     else
-      echo -e "  ${version}"
+      echo -e "${version}"
     fi
   done
 }
@@ -360,7 +425,7 @@ evm_V() {
 
 evm_version() {
   _check_no_args "$@"
-  _get_current_version
+  echo "${ES_NAME} $(_get_current_version)"
 }
 
 evm_which() {
@@ -371,13 +436,12 @@ evm_which() {
   if [[ -d "${path}" ]]; then
     echo "${path}"
   else
-    echo "Elasticsearch ${version} not found."
+    echo "Elasticsearch ${version} not found"
   fi
 }
 
 evm_help() {
   cat <<'EOF'
-
 Elasticsearch Version Manager
 
 Usage:
@@ -391,15 +455,15 @@ Usage:
  evm which [<version>]                      Print path to installed Elasticsearch version
  evm plugin list                            List all installed Elasticsearch plugins
  evm plugin <install|remove> <plugin>       Install or remove an Elasticsearch plugin
- evm start [-c </path/to/config/dir>]       Start Elasticsearch in the background with a specific config directory (optional)
+ evm start [-h|-E <KeyValuePair>]           Start Elasticsearch in the background
  evm stop                                   Stop Elasticsearch if it is running
  evm status                                 Check if Elasticsearch is running
 
 Example:
  evm install 5.3.1                          Install Elasticsearch 5.3.1
  evm use 5.3.1                              Use Elasticsearch 5.3.1
- evm start                                  Start Elasticsearch node with the default config directory
- evm start -c /etc/elasticsearch            Start Elasticsearch node with /etc/elasticsearch config directory
+ evm start                                  Start Elasticsearch
+ evm start -Expack.security.enabled=true    Start Elasticsearch with enabled security
  evm status                                 Print Elasticsearch running status
  evm stop                                   Stop Elasticsearch if it is running
  evm plugin install x-pack                  Install the x-pack plugin
@@ -421,11 +485,16 @@ main() {
       evm_V
       exit 0
       ;;
-    \?) _abort "Unknown option: -${OPTARG}. Use evm -h for help." ;;
+    \?) _abort "Unknown option: -${OPTARG}. Run 'evm -h' for help." ;;
     esac
   done
   shift "$((OPTIND - 1))"
-  local subcmd="$1"
+  local subcmd="${1:-}"
+
+  if [[ -z "${subcmd}" ]]; then
+    _abort "Missing a command. Run 'evm -h' for help"
+  fi
+
   shift
   case "${subcmd}" in
   "${INSTALL_CMD}") evm_install "$@" ;;
@@ -438,7 +507,7 @@ main() {
   "${WHICH_CMD}") evm_which "$@" ;;
   "${LIST_CMD}") evm_list "$@" ;;
   "${VERSION_CMD}") evm_version "$@" ;;
-  *) evm_help ;;
+  *) _abort "Unknown command: ${subcmd}. Run 'evm -h' for help" ;;
   esac
 }
 
